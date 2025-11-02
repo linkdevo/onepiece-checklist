@@ -62,15 +62,29 @@ export default function VolumeChecklist() {
   function importJSON(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result));
+        // Tipamos o shape esperado do JSON
+        const parsed = JSON.parse(String(reader.result)) as {
+          owned?: unknown[];
+        };
+
         if (Array.isArray(parsed.owned)) {
-          const onlyValid = parsed.owned
-            .map((n: unknown) => Number(n))
-            .filter((n: number) => Number.isInteger(n) && n >= 1 && n <= TOTAL);
-          setOwned(Array.from(new Set(onlyValid)).sort((a, b) => a - b));
+          // Garante number[] com filtro tipo-predicado
+          const onlyValid: number[] = parsed.owned
+            .map((n) => Number(n))
+            .filter(
+              (n): n is number => Number.isInteger(n) && n >= 1 && n <= TOTAL
+            );
+
+          // Força Set<number> e resultado number[]
+          const uniqueSorted: number[] = Array.from(
+            new Set<number>(onlyValid)
+          ).sort((a, b) => a - b);
+
+          setOwned(uniqueSorted);
           alert("Backup importado com sucesso!");
         } else {
           alert("Arquivo inválido: propriedade 'owned' ausente.");
@@ -78,7 +92,7 @@ export default function VolumeChecklist() {
       } catch {
         alert("Não foi possível ler o JSON.");
       } finally {
-        e.target.value = "";
+        e.target.value = ""; // permite importar o mesmo arquivo novamente
       }
     };
     reader.readAsText(file);
